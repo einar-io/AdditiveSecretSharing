@@ -1,5 +1,4 @@
 use log::{debug, info};
-use rand;
 use std::{ops::Range, time::Duration};
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -7,9 +6,9 @@ use tokio::{
     time::sleep,
 };
 
-const PARTIES_COUNT: usize = 4;
-const SALARIES: [i64; PARTIES_COUNT] = [160000, 180000, 190000, 210000];
-const PARTIES: Range<usize> = 0..PARTIES_COUNT;
+const COUNT: usize = 4;
+const SALARIES: [i64; COUNT] = [160000, 180000, 190000, 210000];
+const PARTIES: Range<usize> = 0..COUNT;
 
 async fn party(this_party: usize) -> i64 {
     info!("party {this_party} started");
@@ -46,7 +45,7 @@ async fn party(this_party: usize) -> i64 {
         sumsum += part.unwrap();
     }
 
-    let avg_salary = sumsum / i64::try_from(PARTIES_COUNT).unwrap();
+    let avg_salary = sumsum / i64::try_from(COUNT).unwrap();
     info!("party {this_party} computed average salary of {avg_salary}.");
     // this is better/worse
     info!("party {this_party} terminating ..");
@@ -139,18 +138,16 @@ async fn main() {
     while let Some(avg) = nodes.join_next().await {
         assert_eq!(avg.unwrap(), avg_actual);
     }
-
     info!("goodbye, world!")
-
 }
 
-async fn split(salary: i64) -> [i64; PARTIES_COUNT] {
-    let mut split: [i64; PARTIES_COUNT] = [0; PARTIES_COUNT];
+async fn split(salary: i64) -> [i64; COUNT] {
+    let mut split: [i64; COUNT] = [0; COUNT];
 
     let mut acc = 0;
-    for id in 0..PARTIES_COUNT - 1 {
-        split[id] = i64::from(rand::random::<i32>());
-        acc += split[id];
+    for item in split.iter_mut().take(COUNT - 1) {
+        *item = i64::from(rand::random::<i32>());
+        acc += *item;
     }
 
     *split.last_mut().unwrap() = salary - acc;
