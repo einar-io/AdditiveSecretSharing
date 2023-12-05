@@ -152,6 +152,6 @@ async fn split(salary: i64) -> [i64; COUNT] {
 
     *split.last_mut().unwrap() = salary - acc;
 
-    assert_eq!(salary, split.iter().sum());
+    debug_assert_eq!(salary, split.iter().sum());
     split
 }

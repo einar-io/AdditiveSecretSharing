@@ -9,6 +9,10 @@ To try it out:
     git clone https://github.com/einar-io/AdditiveSecretSharing.git
     RUST_LOG=info cargo run
 
+For a more detailed log:
+
+    RUST_LOG=debug cargo run
+
 
 ##### Caveats
 
