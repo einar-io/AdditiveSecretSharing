@@ -11,9 +11,9 @@ const SALARIES: [i64; COUNT] = [160000, 180000, 190000, 210000];
 const PARTIES: Range<usize> = 0..COUNT;
 
 async fn party(this_party: usize) -> i64 {
-    info!("party {this_party} started");
+    info!("<Party {this_party}> started");
     let split = split(SALARIES[this_party]).await;
-    info!("party {this_party} calculated split {split:#?}.");
+    info!("<Party {this_party}> split his salary into random fragments: {split:#?}.");
 
     // phase one: exchange splits
     let mut nodes = JoinSet::new();
@@ -21,7 +21,7 @@ async fn party(this_party: usize) -> i64 {
         if party == this_party {
             nodes.spawn(sender(party, split));
         } else {
-            nodes.spawn(receiver(party));
+            nodes.spawn(receiver(this_party, party));
         }
     }
 
@@ -29,7 +29,7 @@ async fn party(this_party: usize) -> i64 {
     while let Some(part) = nodes.join_next().await {
         sum += part.unwrap();
     }
-    info!("party {this_party} computed sum {sum}.");
+    info!("<Party {this_party}> computed sum {sum}.");
 
     // phase two: share sums
     let mut nodes = JoinSet::new();
@@ -37,25 +37,39 @@ async fn party(this_party: usize) -> i64 {
         if party == this_party {
             nodes.spawn(sum_sender(party, sum));
         } else {
-            nodes.spawn(sum_receiver(party));
+            nodes.spawn(sum_receiver(this_party, party));
         }
     }
-    let mut sumsum = 0;
+    let mut party_sum = 0;
     while let Some(part) = nodes.join_next().await {
-        sumsum += part.unwrap();
+        party_sum += part.unwrap();
     }
 
-    let avg_salary = sumsum / i64::try_from(COUNT).unwrap();
-    info!("party {this_party} computed average salary of {avg_salary}.");
+    let avg_salary = party_sum / i64::try_from(COUNT).unwrap();
+    info!("<Party {this_party}> computed average salary of {avg_salary}.");
     // this is better/worse
-    info!("party {this_party} terminating ..");
+    let my_salary = SALARIES[this_party];
+    if avg_salary == my_salary {
+        info!("<Party {this_party}> learns that he earns exactly the average salary 🟡.");
+    } else if avg_salary < my_salary {
+        info!(
+            "<Party {this_party}> learns that he earns {} more than the average salary ✅.",
+            my_salary - avg_salary
+        );
+    } else {
+        info!(
+            "<Party {this_party}> learns that he earns {} less than the average salary ❌.",
+            my_salary - avg_salary
+        );
+    }
+
+    info!("<Party {this_party}> terminating ..");
     avg_salary
 }
 
-async fn sender(this_party: usize, split: [i64; 4]) -> i64 {
+async fn sender(this_party: usize, split: [i64; COUNT]) -> i64 {
     let port = 12121 + this_party;
     let addr = format!("127.0.0.1:{port}");
-    debug!("Sender: {}", addr.clone());
     let listener = TcpListener::bind(addr).await.unwrap();
     for node in PARTIES {
         if node == this_party {
@@ -64,34 +78,37 @@ async fn sender(this_party: usize, split: [i64; 4]) -> i64 {
         // Asynchronously wait for an inbound socket.
         let (socket, _) = listener.accept().await.unwrap();
         socket.writable().await.unwrap();
-        debug!("Sending: {}", split[this_party]);
+        debug!("<Party {this_party}> sent fragment: {}", split[this_party]);
         let buf = bincode::serialize(&split[node]).unwrap();
         socket.try_write(&buf).unwrap();
     }
     split[this_party]
 }
 
-async fn receiver(other_party: usize) -> i64 {
-    //info!("party {id} calculated split {split:#?}.");
-
+async fn receiver(this_party: usize, other_party: usize) -> i64 {
     let port = 12121 + other_party;
     let addr = format!("127.0.0.1:{port}");
-    debug!("Receiver: {}", addr.clone());
-    sleep(Duration::from_secs(1)).await;
-    let stream = TcpStream::connect(addr).await.unwrap();
+
+    let stream;
+    loop {
+        sleep(Duration::from_secs(1)).await;
+        if let Ok(stream_) = TcpStream::connect(addr.clone()).await {
+            stream = stream_;
+            break;
+        }
+    }
 
     stream.readable().await.unwrap();
     let mut buf = vec![];
     stream.try_read_buf(&mut buf).unwrap();
     let res: i64 = bincode::deserialize(&buf).unwrap();
-    debug!("Received: {}", res.clone());
+    debug!("<Party {this_party}> received from <Party {other_party}> fragment: {res}",);
     res
 }
 
 async fn sum_sender(this_party: usize, sum: i64) -> i64 {
     let port = 12121 + this_party;
     let addr = format!("127.0.0.1:{port}");
-    debug!("Sender: {}", addr.clone());
     let listener = TcpListener::bind(addr).await.unwrap();
     for node in PARTIES {
         if node == this_party {
@@ -100,34 +117,38 @@ async fn sum_sender(this_party: usize, sum: i64) -> i64 {
         // Asynchronously wait for an inbound socket.
         let (socket, _) = listener.accept().await.unwrap();
         socket.writable().await.unwrap();
-        debug!("Sending: {}", sum);
+        debug!("<Party {this_party}> sent sum: {}", sum);
         let buf = bincode::serialize(&sum).unwrap();
         socket.try_write(&buf).unwrap();
     }
     sum
 }
 
-async fn sum_receiver(other_party: usize) -> i64 {
-    //info!("party {id} calculated split {split:#?}.");
-
+async fn sum_receiver(this_party: usize, other_party: usize) -> i64 {
     let port = 12121 + other_party;
     let addr = format!("127.0.0.1:{port}");
-    debug!("Receiver: {}", addr.clone());
-    sleep(Duration::from_secs(1)).await;
-    let stream = TcpStream::connect(addr).await.unwrap();
+
+    let stream;
+    loop {
+        sleep(Duration::from_secs(1)).await;
+        if let Ok(stream_) = TcpStream::connect(addr.clone()).await {
+            stream = stream_;
+            break;
+        }
+    }
 
     stream.readable().await.unwrap();
     let mut buf = vec![];
     stream.try_read_buf(&mut buf).unwrap();
     let res: i64 = bincode::deserialize(&buf).unwrap();
-    debug!("Received: {}", res.clone());
+    debug!("<Party {this_party}> received from <Party {other_party}> sum: {res}.",);
     res
 }
 
 #[tokio::main]
 async fn main() {
     env_logger::init();
-    info!("hello, world!");
+    info!("<main> Hello, world!");
     let mut nodes = JoinSet::new();
     for party_id in PARTIES {
         nodes.spawn(party(party_id));
@@ -138,10 +159,10 @@ async fn main() {
     while let Some(avg) = nodes.join_next().await {
         assert_eq!(avg.unwrap(), avg_actual);
     }
-    info!("goodbye, world!")
+    info!("<main> Goodbye, world!")
 }
 
-async fn split(salary: i64) -> [i64; COUNT] {
+async fn split(salary: i64) -> [i64; COUNT]{
     let mut split: [i64; COUNT] = [0; COUNT];
 
     let mut acc = 0;
