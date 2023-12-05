@@ -7,7 +7,7 @@ use tokio::{
 };
 
 const COUNT: usize = 4;
-const SALARIES: [i64; COUNT] = [160000, 180000, 190000, 210000];
+const SALARIES: [i64; COUNT] = [180000, 220000, 220000, 260000];
 const PARTIES: Range<usize> = 0..COUNT;
 
 async fn party(this_party: usize) -> i64 {
