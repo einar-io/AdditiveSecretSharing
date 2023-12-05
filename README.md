@@ -12,7 +12,7 @@ To try it out:
 
 ##### Caveats
 
-There are no attempts done at error handling.
+There are no attempts done at error handling, automated testing or efficiency.
 
 
 [^1]: [Multi-Party Computation simplified: Ivan Damgård, Co-founder/Chief
