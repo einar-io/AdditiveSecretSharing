@@ -1,5 +1,5 @@
 use log::{debug, info};
-use std::{ops::Range, time::Duration};
+use std::{cmp::Ordering, ops::Range, time::Duration};
 use tokio::{
     net::{TcpListener, TcpStream},
     task::JoinSet,
@@ -49,18 +49,18 @@ async fn party(this_party: usize) -> i64 {
     info!("<Party {this_party}> computed average salary of {avg_salary}.");
     // this is better/worse
     let my_salary = SALARIES[this_party];
-    if avg_salary == my_salary {
-        info!("<Party {this_party}> learns that he earns exactly the average salary 🟡.");
-    } else if avg_salary < my_salary {
-        info!(
+    match my_salary.cmp(&avg_salary) {
+        Ordering::Greater => {
+            info!("<Party {this_party}> learns that he earns exactly the average salary 🟡.")
+        }
+        Ordering::Less => info!(
             "<Party {this_party}> learns that he earns {} more than the average salary ✅.",
             my_salary - avg_salary
-        );
-    } else {
-        info!(
+        ),
+        Ordering::Equal => info!(
             "<Party {this_party}> learns that he earns {} less than the average salary ❌.",
             my_salary - avg_salary
-        );
+        ),
     }
 
     info!("<Party {this_party}> terminating ..");

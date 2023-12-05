@@ -3,7 +3,7 @@
 version = 3
 
 [[package]]
-name = "Additive_Secret_Sharing"
+name = "additive_secret_sharing"
 version = "0.1.0"
 dependencies = [
  "bincode",
