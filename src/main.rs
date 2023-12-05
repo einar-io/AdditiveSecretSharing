@@ -19,9 +19,9 @@ async fn party(this_party: usize) -> i64 {
     let mut nodes = JoinSet::new();
     for party in PARTIES {
         if party == this_party {
-            nodes.spawn(sender(party, split));
+            nodes.spawn(fragment_sender(party, split));
         } else {
-            nodes.spawn(receiver(this_party, party));
+            nodes.spawn(fragment_receiver(this_party, party));
         }
     }
 
@@ -67,7 +67,7 @@ async fn party(this_party: usize) -> i64 {
     avg_salary
 }
 
-async fn sender(this_party: usize, split: [i64; COUNT]) -> i64 {
+async fn fragment_sender(this_party: usize, split: [i64; COUNT]) -> i64 {
     let port = 12121 + this_party;
     let addr = format!("127.0.0.1:{port}");
     let listener = TcpListener::bind(addr).await.unwrap();
@@ -85,7 +85,7 @@ async fn sender(this_party: usize, split: [i64; COUNT]) -> i64 {
     split[this_party]
 }
 
-async fn receiver(this_party: usize, other_party: usize) -> i64 {
+async fn fragment_receiver(this_party: usize, other_party: usize) -> i64 {
     let port = 12121 + other_party;
     let addr = format!("127.0.0.1:{port}");
 
