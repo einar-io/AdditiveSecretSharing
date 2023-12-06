@@ -10,12 +10,29 @@ const COUNT: usize = 4;
 const SALARIES: [i64; COUNT] = [180000, 220000, 220000, 260000];
 const PARTIES: Range<usize> = 0..COUNT;
 
+#[tokio::main]
+async fn main() {
+    env_logger::init();
+    info!("<main> Hello, world!");
+    let mut nodes = JoinSet::new();
+    for party_id in PARTIES {
+        nodes.spawn(party(party_id));
+    }
+    let numerator = SALARIES.iter().sum::<i64>();
+    let denominator = i64::try_from(SALARIES.len()).unwrap();
+    let avg_actual = numerator / denominator;
+    while let Some(avg) = nodes.join_next().await {
+        assert_eq!(avg.unwrap(), avg_actual);
+    }
+    info!("<main> Goodbye, world!")
+}
+
 async fn party(this_party: usize) -> i64 {
     info!("<Party {this_party}> started");
     let split = split(SALARIES[this_party]).await;
     info!("<Party {this_party}> split his salary into random fragments: {split:#?}.");
 
-    // phase one: exchange splits
+    // phase one: exchange fragments
     let mut nodes = JoinSet::new();
     for party in PARTIES {
         if party == this_party {
@@ -40,6 +57,7 @@ async fn party(this_party: usize) -> i64 {
             nodes.spawn(sum_receiver(this_party, party));
         }
     }
+
     let mut party_sum = 0;
     while let Some(part) = nodes.join_next().await {
         party_sum += part.unwrap();
@@ -47,7 +65,6 @@ async fn party(this_party: usize) -> i64 {
 
     let avg_salary = party_sum / i64::try_from(COUNT).unwrap();
     info!("<Party {this_party}> computed average salary of {avg_salary}.");
-    // this is better/worse
     let my_salary = SALARIES[this_party];
     match my_salary.cmp(&avg_salary) {
         Ordering::Greater => {
@@ -143,23 +160,6 @@ async fn sum_receiver(this_party: usize, other_party: usize) -> i64 {
     let res: i64 = bincode::deserialize(&buf).unwrap();
     debug!("<Party {this_party}> received from <Party {other_party}> sum: {res}.",);
     res
-}
-
-#[tokio::main]
-async fn main() {
-    env_logger::init();
-    info!("<main> Hello, world!");
-    let mut nodes = JoinSet::new();
-    for party_id in PARTIES {
-        nodes.spawn(party(party_id));
-    }
-    let numerator = SALARIES.iter().sum::<i64>();
-    let denominator = i64::try_from(SALARIES.len()).unwrap();
-    let avg_actual = numerator / denominator;
-    while let Some(avg) = nodes.join_next().await {
-        assert_eq!(avg.unwrap(), avg_actual);
-    }
-    info!("<main> Goodbye, world!")
 }
 
 async fn split(salary: i64) -> [i64; COUNT]{
