@@ -67,14 +67,14 @@ async fn party(this_party: usize) -> i64 {
     info!("<Party {this_party}> computed average salary of {avg_salary}.");
     let my_salary = SALARIES[this_party];
     match my_salary.cmp(&avg_salary) {
-        Ordering::Greater => {
-            info!("<Party {this_party}> learns that he earns exactly the average salary 🟡.")
-        }
         Ordering::Less => info!(
             "<Party {this_party}> learns that he earns {} more than the average salary ✅.",
             my_salary - avg_salary
         ),
-        Ordering::Equal => info!(
+        Ordering::Equal=> {
+            info!("<Party {this_party}> learns that he earns exactly the average salary 🟡.")
+        }
+        Ordering::Greater=> info!(
             "<Party {this_party}> learns that he earns {} less than the average salary ❌.",
             my_salary - avg_salary
         ),
